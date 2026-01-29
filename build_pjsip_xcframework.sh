@@ -1,46 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build PJSIP (pjproject) as a single XCFramework (device + simulator)
-#
-# Usage:
-#   cd /path/to/pjproject
-#   chmod +x scripts/build_pjsip_xcframework.sh
-#   ./scripts/build_pjsip_xcframework.sh
+# Put this script inside pjproject-2.16 and run:
+#   chmod +x tugrul.sh
+#   ./tugrul.sh
 #
 # Output:
-#   ./.build/pjsip-ios/out/PJSIP.xcframework
-#
-# Env overrides:
-#   MIN_IOS_DEVICE=13.0
-#   MIN_IOS_SIM=13.0
-#   ARCH_DEVICE=arm64
-#   ARCH_SIM=arm64|x86_64
-#   XCODE_APP=/Applications/Xcode.app
+#   ./tugrul/out/PJSIP.xcframework
 
 MIN_IOS_DEVICE="${MIN_IOS_DEVICE:-13.0}"
 MIN_IOS_SIM="${MIN_IOS_SIM:-13.0}"
 ARCH_DEVICE="${ARCH_DEVICE:-arm64}"
+ARCH_SIM="${ARCH_SIM:-arm64}"
 XCODE_APP="${XCODE_APP:-/Applications/Xcode.app}"
-
 SIM_DEVPATH="$XCODE_APP/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer"
 
-# Resolve script dir & pjproject root
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SRC_DIR="$SCRIPT_DIR"
+# Use script location as pjproject root (so it works no matter where you run it from)
+SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SRC_DIR"
 
-# Auto-pick simulator arch if not set explicitly
-if [[ -z "${ARCH_SIM:-}" ]]; then
-  HOST_ARCH="$(uname -m)"
-  if [[ "$HOST_ARCH" == "arm64" ]]; then
-    ARCH_SIM="arm64"
-  else
-    ARCH_SIM="x86_64"
-  fi
-fi
-
-ROOT_DIR="$SRC_DIR/.build/pjsip-ios"
+ROOT_DIR="$SRC_DIR/tugrul"
 WORK_DIR="$ROOT_DIR/work"
 OUT_DIR="$ROOT_DIR/out"
 
@@ -50,16 +29,11 @@ SIM_DIR="$WORK_DIR/pjproject-sim"
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 echo "==> pjproject root : $SRC_DIR"
-echo "==> build root     : $ROOT_DIR"
-echo "==> out dir        : $OUT_DIR"
+echo "==> output root    : $ROOT_DIR"
 
-[[ -f "$SRC_DIR/configure-iphone" ]] || die "configure-iphone not found. Run this script from a pjproject source tree (pjproject root)."
-[[ -f "$SRC_DIR/build/os-auto.mak.in" ]] || die "Missing build/os-auto.mak.in. Source tree looks incomplete."
+[[ -f "$SRC_DIR/configure-iphone" ]] || die "configure-iphone not found. Script must be inside pjproject-2.16."
+[[ -f "$SRC_DIR/build/os-auto.mak.in" ]] || die "Missing build/os-auto.mak.in. Source incomplete."
 [[ -d "$SIM_DEVPATH" ]] || die "Simulator DEVPATH not found: $SIM_DEVPATH (set XCODE_APP=/path/to/Xcode.app)"
-
-# Safety guard before deleting anything
-# We only ever delete inside pjproject/.build/
-[[ "$ROOT_DIR" == "$SRC_DIR/.build/"* ]] || die "Refusing to delete non-build dir: $ROOT_DIR"
 
 rm -rf "$ROOT_DIR"
 mkdir -p "$WORK_DIR" "$OUT_DIR"
@@ -114,7 +88,7 @@ pj_clean "$DEVICE_DIR"
   make dep && make clean && make
 )
 
-echo "==> BUILD SIMULATOR (arch=$ARCH_SIM min_iOS=$MIN_IOS_SIM)"
+echo "==> BUILD SIM (arch=$ARCH_SIM min_iOS=$MIN_IOS_SIM)"
 pj_clean "$SIM_DIR"
 (
   cd "$SIM_DIR"
